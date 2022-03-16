@@ -3,9 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-use App\Controller\UserController;
-use App\Controller\AuthController;
-use App\Controller\BarberController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BarberController;
 
 /*
 |--------------------------------------------------------------------------
