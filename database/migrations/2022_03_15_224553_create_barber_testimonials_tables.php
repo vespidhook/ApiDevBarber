@@ -15,10 +15,10 @@ class CreateBarberTestimonialsTables extends Migration
     {
         Schema::create('barber_testimonials', function (Blueprint $table) {
             $table->id();
-            $table->integer('barber_id');
+            $table->integer('id_barber');
             $table->string('name');
             $table->float('rate');
-            $table->string('body');
+            $table->string('body', 255);
             $table->timestamps();
         });
     }

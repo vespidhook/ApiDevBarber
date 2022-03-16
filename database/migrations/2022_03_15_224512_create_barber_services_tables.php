@@ -15,7 +15,7 @@ class CreateBarberServicesTables extends Migration
     {
         Schema::create('barber_services', function (Blueprint $table) {
             $table->id();
-            $table->integer('barber_id');
+            $table->integer('id_barber');
             $table->string('name');
             $table->float('price');
             $table->timestamps();
