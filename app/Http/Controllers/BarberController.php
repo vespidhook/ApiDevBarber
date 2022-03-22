@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 
 use App\Models\User;
 use App\Models\UserAppointment;
+use App\Models\UserFavorite;
 use App\Models\Barber;
 use App\Models\BarberPhotos;
 use App\Models\BarberServices;
@@ -76,10 +77,26 @@ class BarberController extends Controller
                 $newBarberTestimonial->save();
             }
 
-
+            for($e=0;$e<4;$e++){
+                $rAdd = rand(7, 10);
+                $hours = [];
+                for($r=0;$r<8;$r++) {
+                $time = $r + $rAdd;
+                if($time < 10) {
+                $time = '0'.$time;
+                }
+                $hours[] = $time.':00';
+                }
+                $newBarberAvail = new BarberAvailability();
+                $newBarberAvail->id_barber = $newBarber->id;
+                $newBarberAvail->weekday = $e;
+                $newBarberAvail->hours = implode(',', $hours);
+                $newBarberAvail->save();
             }
-        return $array;
+        }
+    return $array;
     }
+
 
     private function searchGeo($address)
     {
@@ -160,6 +177,14 @@ class BarberController extends Controller
             $barber['testimonials'] = [];
             $barber['available'] = [];
 
+            // Verificando favorito
+            $cFavorite = UserFavorite::where('id_user', $this->loggedUser->id)
+                ->where('id_barber', $barber->id)
+                ->count();
+            if($cFavorite > 0) {
+                $barber['favorited'] = true;
+            }
+
             // Pegando as fotos do barbeiro
             $barber['photos'] = BarberPhotos::select(['id', 'url'])->where('id_barber', $barber->id)->get();
             foreach($barber['photos'] as $bpkey => $bpvalue) {
@@ -177,9 +202,10 @@ class BarberController extends Controller
 
             // - Pegando a disponibilidade crua
             $avails = BarberAvailability::where('id_barber', $barber->id)->get();
-            $availsWeekdays = [];
+
+            $availWeekdays = [];
             foreach ($avails as $item) {
-                $availsWeekdays[$item['weekday']] = explode(',', $item['hours']);
+                $availWeekdays[$item['weekday']] = explode(',', $item['hours']);
             }
 
             // - Pegar os agendamentos dos próximos 20 dias
@@ -196,17 +222,17 @@ class BarberController extends Controller
 
             // - Gerar disponibilidade real
             for($q=0;$q<20;$q++) {
-                $timeItem = strtoitem('+'.$q.' days');
+                $timeItem = strtotime('+'.$q.' days');
                 $weekday = date('w', $timeItem);
 
-                if(in_array($weekday, array_keys($availsWeekdays))) {
+                if(in_array($weekday, array_keys($availWeekdays))) {
                     $hours = [];
 
                     $dayItem = date('Y-m-d', $timeItem);
 
-                    foreach($availsWeekdays[$weekday] as $hourItem) {
+                    foreach($availWeekdays[$weekday] as $hourItem) {
                         $dayFormated = $dayItem.' '.$hourItem.':00';
-                        if(in_array($dayFormated, $appointments)) {
+                        if(!in_array($dayFormated, $appointments)) {
                             $hours[] = $hourItem;
                         }
                     }
@@ -227,6 +253,52 @@ class BarberController extends Controller
             $arrey['error'] = 'Barbeiro não existe';
             return $array;
         }
+
+        return $array;
+    }
+
+    public function setAppointment($id, Request $request)
+    {
+        $array = ['error' => ''];
+
+        $service  = $request->input('service');
+        $year = intval($request->input('year'));
+        $month = intval($request->input('month'));
+        $day = intval($request->input('day'));
+        $hour = intval($request->input('hour'));
+
+        $month = ($month < 10) ? '0'.$month : $month;
+        $day = ($day < 10) ? '0'.$day : $day;
+        $hour = ($hour < 10) ? '0'.$hour : $hour;
+
+        // 1. verificar  se o serviço  do barbeiro existe
+        $barberservice = BarberServices::select()
+            ->where('id', $service)
+            ->where('id_barber', $id)
+        ->first();
+
+        if($barberservice) {
+            // 2. verificar se a data é real
+            $apDate = $year. '-'.$month.'-'.$day.' '.$hour.':00:00';
+            if(strtotime($apDate) > 0) {
+                // 3. veificar se o barbeiro ja possui agendamento neste dia/hora
+                $apps = UserAppointment::select()
+                    ->where('id_barber', $id)
+                    ->where('ap_datetime', $apDate)
+
+                // 4. verificar se o barbeiro atende nesta data/hora
+                // 5. fazer o agendamento
+
+            } else {
+                $array['error'] = 'Data inválida';
+            }
+
+        } else {
+            $array['error'] = 'Serviço não existe';
+            return $array;
+        }
+
+
 
         return $array;
     }
