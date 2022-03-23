@@ -334,6 +334,8 @@ class BarberController extends Controller
                 ->where('name', 'LIKE', '%'.$q.'%')
             ->get();
 
+
+
         } else {
             $array['error'] = 'Digite algo para buscar';
         }
