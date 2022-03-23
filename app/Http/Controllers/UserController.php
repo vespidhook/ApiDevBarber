@@ -4,9 +4,16 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\File;
 
+use Intervention\Image\Facades\Image;
+
+use App\Models\UserAppointment;
 use App\Models\UserFavorite;
 use App\Models\Barber;
+use App\Models\BarberServices;
+use App\Models\User;
 
 class UserController extends Controller
 {
@@ -80,6 +87,113 @@ class UserController extends Controller
                 $array['list'][] = $barber;
             }
         }
+
+        return $array;
+    }
+
+    public function getAppointments()
+    {
+        $array = ['error' => '', 'list' => []];
+
+        $apps = UserAppointment::select()
+            ->where('id_user', $this->loggedUser->id)
+            ->orderBy('ap_datetime', 'DESC')
+        ->get();
+
+        if($apps) {
+
+            foreach($apps as $app) {
+
+                    $barber = Barber::find($app['id_barber']);
+                    $barber['avatar'] = url('media/avatars/' . $barber['avatar']);
+
+                    $service = BarberServices::find($app['id_service']);
+
+                    $array['list'][] = [
+                        'id' => $app['id'],
+                        'datetime' => $app['ap_datetime'],
+                        'barber' => $barber,
+                        'service' => $service
+                    ];
+            }
+        }
+
+        return $array;
+    }
+
+    public function update(Request $request)
+    {
+        $array = ['error' => ''];
+
+        $rules = [
+            'name' => 'min:2',
+            'email' => 'email|unique:users',
+            'password' => 'same:password_confirm',
+            'password_confirm' => 'same:password',
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if($validator->fails()) {
+            $array['error'] = $validator->messages();
+            return $array;
+        }
+
+        $name = $request->input('name');
+        $email = $request->input('email');
+        $password = $request->input('password');
+        $password_confirm = $request->input('password_confirm');
+
+        $user = User::find($this->loggedUser->id);
+
+        if($name) {
+            $user->name = $name;
+        }
+
+        if($email) {
+            $user->email = $email;
+        }
+
+        if($password) {
+            $user->password = password_hash($password, PASSWORD_DEFAULT);
+        }
+
+        $user->save();
+
+        return $array;
+    }
+
+    public function updateAvatar(Request $request)
+    {
+        $array = ['error' => ''];
+
+        $rules = [
+            'avatar' => 'required|image|mimes:jpeg,png,jpg',
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if($validator->fails()) {
+            $array['error'] = $validator->messages();
+            return $array;
+        }
+
+        $avatar = $request->file('avatar');
+
+        $dest = public_path('media/avatars/');
+        $avatarName = md5(time().rand(0,9999)).'.jpg';
+
+        $img = Image::make($avatar->getRealPath());
+        $img->fit(300, 300)->save($dest.'/'.$avatarName);
+
+        $user = User::find($this->loggedUser->id);
+
+        if ($user["avatar"] !== $avatarName) {
+            File::delete(public_path("/media/avatars/".$user["avatar"]));
+        }
+
+        $user->avatar = $avatarName;
+        $user->save();
 
         return $array;
     }
