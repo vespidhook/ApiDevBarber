@@ -30,7 +30,7 @@ class UserController extends Controller
         return $array;
     }
 
-    public function addFavorite(Request $request)
+    public function toggleFavorite(Request $request)
     {
         $array = ['error' => ''];
 
@@ -39,28 +39,46 @@ class UserController extends Controller
         $barber = Barber::find($id_barber);
 
         if($barber) {
-            $hasFav = UserFavorite::select()
+            $fav = UserFavorite::select()
                 ->where('id_user', $this->loggedUser->id)
-                ->where('id_barber', $barber)
-            ->count();
+                ->where('id_barber', $id_barber)
+            ->first();
 
-            if($hasfav === 0) {
+            if($fav) {
+                // remover
+                $fav->delete();
+                $array['have'] = false;
+            } else {
                 //adicionar
                 $newFav = new UserFavorite();
                 $newFav->id_user = $this->loggedUser->id;
-                $newFav->id_barber = $barber;
+                $newFav->id_barber = $id_barber;
                 $newFav->save();
-            } else {
-                // remover
-                $fav = UserFavorite::select()
-                    ->where('id_user', $this->loggedUser->id)
-                    ->where('id_barber', $barber)
-                ->first();
+                $array['have'] = true;
 
-                $fav->remove();
             }
         } else {
             $array['error'] = 'Barbeiro não encontrado';
+        }
+
+        return $array;
+    }
+
+    public function getFavorites()
+    {
+        $array = ['error' => '', 'list' => []];
+
+        $favs = UserFavorite::select()
+            ->where('id_user', $this->loggedUser->id)
+        ->get();
+
+        if($favs) {
+            foreach($favs as $fav) {
+
+                $barber = Barber::find($fav['id_barber']);
+                $barber['avatar'] = url('media/avatars/' . $barber['avatar']);
+                $array['list'][] = $barber;
+            }
         }
 
         return $array;
