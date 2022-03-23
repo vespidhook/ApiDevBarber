@@ -281,25 +281,44 @@ class BarberController extends Controller
             // 2. verificar se a data é real
             $apDate = $year. '-'.$month.'-'.$day.' '.$hour.':00:00';
             if(strtotime($apDate) > 0) {
-                // 3. veificar se o barbeiro ja possui agendamento neste dia/hora
+                // 3. veificar se o barbeiro ja possui agendamento nesta data
                 $apps = UserAppointment::select()
                     ->where('id_barber', $id)
                     ->where('ap_datetime', $apDate)
-
-                // 4. verificar se o barbeiro atende nesta data/hora
-                // 5. fazer o agendamento
-
+                ->count();
+                if($apps === 0 ) {
+                    // 4.1 verificar se o barbeiro atende nesta data
+                    $weekday = date('w', strtotime($apDate));
+                    $avail = BarberAvailability::select()
+                        ->where('id_barber', $id)
+                        ->where('weekday', $weekday)
+                    ->first();
+                    if($avail) {
+                        // 4.2 verificar se o barbeiro atende nesta hora
+                        $hours = explode(',', $avail['hours']);
+                        if(in_array($hour.':00', $hours)) {
+                            // 5. fazer o agendamento
+                            $newApp = new UserAppointment();
+                            $newApp->id_user = $this->loggedUser->id;
+                            $newApp->id_barber = $id;
+                            $newApp->id_service = $service;
+                            $newApp->ap_datetime = $apDate;
+                            $newApp->save();
+                        } else {
+                            $array['error'] = 'Barbeiro não atende nesta hora';
+                        }
+                    } else {
+                        $array['error'] = 'Barbeiro não atende neste dia';
+                    }
+                } else {
+                    $array['error'] = 'Barbeiro já possui agendamento neste horário';
+                }
             } else {
                 $array['error'] = 'Data inválida';
             }
-
         } else {
             $array['error'] = 'Serviço não existe';
-            return $array;
         }
-
-
-
         return $array;
     }
 }
